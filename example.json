@@ -1,0 +1,59 @@
+{
+    "name": "John Doe",
+    "age": 30,
+    "is_active": true,
+    "balance": 1234.56,
+    "nickname": null,
+    "tags": [
+      "developer",
+      "tech",
+      "coffee"
+    ],
+    "address": {
+      "street": "123 Main St",
+      "city": "New York",
+      "zip": "10001",
+      "coordinates": {
+        "lat": 40.7128,
+        "lng": -74.006
+      }
+    },
+    "phones": [
+      {
+        "type": "home",
+        "number": "555-1234"
+      },
+      {
+        "type": "work",
+        "number": "555-5678"
+      }
+    ],
+    "metadata": {
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": null,
+      "permissions": [
+        "read",
+        "write",
+        "execute"
+      ],
+      "stats": {
+        "visits": 1500,
+        "duration": 120.5,
+        "is_premium": false
+      }
+    },
+    "empty_array": [],
+    "empty_object": {},
+    "large_number": 9999999999,
+    "scientific_notation": 0.000123,
+    "negative_number": -42,
+    "mixed_list": [
+      1.0,
+      "two",
+      true,
+      null,
+      {
+        "key": "value"
+      }
+    ]
+}
