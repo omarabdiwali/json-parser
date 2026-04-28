@@ -166,7 +166,7 @@ def parseObject(content, index):
 
 start = time()
 
-with open(argv[1], "r") as f:
+with open(argv[1], "r", encoding="utf-8") as f:
     content = f.read()
     f.close()
 
