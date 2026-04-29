@@ -1,5 +1,6 @@
 from time import time
 from sys import argv
+import re
 
 objectOpen = '{'
 objectClose = '}'
@@ -7,162 +8,127 @@ listOpen = '['
 listClose = ']'
 quotes = '"'
 content = ""
+breakPattern = re.compile(r'[,\s}\]]')
 
 if len(argv) < 2:
     print("Usage: python main.py <json-file-path>")
     exit()
 
 def parseString(content, index):
-    parsed = ""
-    passedChars = []
+    lastChar = content[index]
     index += 1
-    if index >= len(content):
-        return [parsed, index]
+    startIndex = index
     
-    while True:
-        nextChar = content[index]
-        if nextChar == quotes:
-            if len(passedChars) == 0:
-                break
-            elif passedChars[-1] != "\\":
-                break
-            elif len(passedChars) > 1 and passedChars[-2] == "\\":
-                break
-
-        parsed += nextChar
-        passedChars.append(nextChar)
-        index += 1
-        if index >= len(content):
+    while index < len(content):
+        char = content[index]
+        if char == quotes and lastChar != "\\":
             break
+        
+        lastChar = char if lastChar != "\\" else None   
+        index += 1
     
-    return [parsed, index]
+    parsed = content[startIndex:index]
+    return tuple([parsed, index])
 
 def parseNumber(content, index):
-    parsed = ""
-    breakChars = [',' , objectClose, listClose, ' ']
-    while True:
-        nextChar = content[index]
-        if nextChar in breakChars:
-            break
-        else:
-            parsed += nextChar
-            index += 1
-            if index >= len(content):
-                break
-    
-    if index < len(content) and content[index] in [objectClose, listClose]:
-        index -= 1
+    breakMatch = breakPattern.search(content, index)
+    lastIndex = len(content) if breakMatch is None else breakMatch.start()
+    parsed = content[index:lastIndex]
+
+    if lastIndex < len(content) and (content[lastIndex] == objectClose or content[lastIndex] == listClose):
+        lastIndex -= 1
     
     try:
-        return [int(parsed), index]
+        return tuple([int(parsed), lastIndex])
     except:
-        return [float(parsed), index]
+        return tuple([float(parsed), lastIndex])
 
-def parseBoolOrNull(content, index):
+def parseBoolAndNull(content, index):
     values = { 'false': False, 'true': True, 'null': None }
-    parsed = ""
+    breakMatch = breakPattern.search(content, index)
+    lastIndex = len(content) if breakMatch is None else breakMatch.start()
+    parsed = content[index:lastIndex].lower()
     
-    while True:
-        nextChar = content[index]
-        if nextChar == ",":
-            break
-        else:
-            parsed += nextChar
-            index += 1
-            if index >= len(content) or parsed.lower() in values:
-                break
+    if lastIndex != len(content) and content[lastIndex] != ',':
+        lastIndex -= 1
     
-    if content[index] != ',':
-        index -= 1
-    
-    return [values[parsed.lower()], index] if parsed.lower() in values else ["ERROR", index]
+    return tuple([values[parsed], lastIndex]) if parsed in values else tuple(["ERROR", lastIndex])
 
 def parseList(content, index):
     parsedList = []
     index += 1
-    if index >= len(content):
-        return [parsedList, index]
     
-    while True:
-        nextChar = content[index]
+    while index < len(content):
+        char = content[index]
         parsed = None
 
-        if nextChar == listClose:
+        if char == listClose:
             break
-        elif nextChar == "," or nextChar == " ":
+        elif char == "," or char == " ":
             index += 1
         else:
-            if nextChar == quotes:
+            if char == quotes:
                 parsed, index = parseString(content, index)
-            elif nextChar.isdigit() or nextChar == "-":
+            elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
-            elif nextChar.lower() in ['f', 't', 'n']:
-                parsed, index = parseBoolOrNull(content, index)
-            elif nextChar == listOpen:
+            elif char.lower() in ['f', 't', 'n']:
+                parsed, index = parseBoolAndNull(content, index)
+            elif char == listOpen:
                 parsed, index = parseList(content, index)
-            elif nextChar == objectOpen:
+            elif char == objectOpen:
                 parsed, index = parseObject(content, index)
             else:
-                parsed = 'UNKNOWN'
+                erMes = f"Unknown character while parsing list: {char}. Index: {index} - Substring: {content[max(0, index-20):index+1]}"
+                raise KeyError(erMes)
 
             parsedList.append(parsed)
             index += 1
-
-        if index >= len(content):
-            break
     
-    return [parsedList, index]            
+    return tuple([parsedList, index])
 
 def parseObject(content, index):
-    keys = []
-    values = []
+    obj = {}
+    prevKey = None
     ident = "key"
     index += 1
 
-    while True:
-        curChar = content[index]
+    while index < len(content):
+        char = content[index]
         parsed = None
 
-        if curChar == ":" or curChar == ",":
+        if char == ":" or char == ",":
             index += 1
-        elif curChar == " ":
+        elif char == " ":
             index += 1
-        elif curChar == objectClose:
+        elif char == objectClose:
             break
         else:
-            if curChar == quotes:
+            if char == quotes:
                 parsed, index = parseString(content, index)
-            elif curChar.isdigit() or curChar == "-":
+            elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
-            elif curChar.lower() in ['f', 't', 'n']:
-                parsed, index = parseBoolOrNull(content, index)
-            elif curChar == listOpen:
+            elif char.lower() in set(['f', 't', 'n']):
+                parsed, index = parseBoolAndNull(content, index)
+            elif char == listOpen:
                 parsed, index = parseList(content, index)
-            elif curChar == objectOpen:
+            elif char == objectOpen:
                 parsed, index = parseObject(content, index)
             else:
-                print("UNKNOWN-OBJ:", curChar, "index:", index)
-                parsed = "UNKNOWN"
+                erMes = f"Unknown character while parsing obj: {char}. Index: {index} - Substring: {content[max(0, index-20):index+1]}"
+                raise KeyError(erMes)
             
             if ident == "key":
-                keys.append(parsed)
+                prevKey = parsed
                 ident = "value"
             else:
-                values.append(parsed)
+                obj[prevKey] = parsed
+                prevKey = None
                 ident = "key"
             
             index += 1
-        
-        if index >= len(content):
-            break
 
-    assert len(keys) == len(values), f"Key-Value lengths don't match: {keys} to {values}"
-    
-    obj = {}
-    for i in range(len(keys)):
-        obj[keys[i]] = values[i]
-    
-    return [obj, index]
+    assert None not in obj and prevKey == None, f"Key-Value lengths don't match. {obj}"
+    return tuple([obj, index])
 
 start = time()
 
@@ -170,7 +136,7 @@ with open(argv[1], "r", encoding="utf-8") as f:
     content = f.read()
     f.close()
 
-content = content.replace("\r\n", "").replace("\n", "")
+content = content.strip().replace("\n", "")
 jsonParsed = None
 
 if content[0] == objectOpen:
@@ -181,6 +147,6 @@ else:
     print("Invalid JSON: File has to begin with '{' or '['.")
     exit()
 
-endTime = time()
+duration = time() - start
 print(jsonParsed)
-print("\nParsing took", (endTime - start), "seconds.")
+print(f"\nParsing took {duration} seconds.")

@@ -45,7 +45,7 @@
     "empty_array": [],
     "empty_object": {},
     "large_number": 9999999999,
-    "scientific_notation": 0.000123,
+    "scientific_notation": 1.23e-4,
     "negative_number": -42,
     "mixed_list": [
       1.0,
