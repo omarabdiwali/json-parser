@@ -96,9 +96,7 @@ def parseObject(content, index):
         char = content[index]
         parsed = None
 
-        if char == ":" or char == ",":
-            index += 1
-        elif char == " ":
+        if char == ":" or char == "," or char == " ":
             index += 1
         elif char == objectClose:
             break
@@ -144,8 +142,7 @@ if content[0] == objectOpen:
 elif content[0] == listOpen:
     jsonParsed, _ = parseList(content, 0)
 else:
-    print("Invalid JSON: File has to begin with '{' or '['.")
-    exit()
+    raise KeyError("Invalid JSON: File has to begin with '{' or '['.")
 
 duration = time() - start
 print(jsonParsed)

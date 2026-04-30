@@ -57,8 +57,6 @@ The parser displays parsing duration in seconds after processing, giving users i
 
 ## Limitations
 
-- Basic structure validation only - detailed schema validation not implemented
-- No support for JSON comments (as per standard JSON specification)
 - Memory-intensive for very large JSON files as it loads entire file into memory
 
 ## License
