@@ -89,7 +89,7 @@ def parseList(content, index):
 def parseObject(content, index):
     obj = {}
     prevKey = None
-    ident = "key"
+    isKey = True
     index += 1
 
     while index < len(content):
@@ -115,17 +115,16 @@ def parseObject(content, index):
                 erMes = f"Unknown character while parsing obj: {char}. Index: {index} - Substring: {content[max(0, index-20):index+1]}"
                 raise KeyError(erMes)
             
-            if ident == "key":
+            if isKey:
                 prevKey = parsed
-                ident = "value"
             else:
                 obj[prevKey] = parsed
                 prevKey = None
-                ident = "key"
-            
+
+            isKey = not isKey            
             index += 1
 
-    assert None not in obj and prevKey == None, f"Key-Value lengths don't match. {obj}"
+    assert isKey and None not in obj and prevKey == None, f"Key-Value lengths don't match. {obj}"
     return tuple([obj, index])
 
 start = time()
