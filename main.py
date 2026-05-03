@@ -47,12 +47,12 @@ def parseBoolAndNull(content, index):
     values = { 'false': False, 'true': True, 'null': None }
     breakMatch = breakPattern.search(content, index)
     lastIndex = len(content) if breakMatch is None else breakMatch.start()
-    parsed = content[index:lastIndex].lower()
+    parsed = content[index:lastIndex]
     
     if lastIndex != len(content) and content[lastIndex] != ',':
         lastIndex -= 1
     
-    return tuple([values[parsed], lastIndex]) if parsed in values else tuple(["ERROR", lastIndex])
+    return tuple([values.get(parsed, -1), lastIndex])
 
 def parseList(content, index):
     parsedList = []
@@ -71,8 +71,12 @@ def parseList(content, index):
                 parsed, index = parseString(content, index)
             elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
-            elif char.lower() in ['f', 't', 'n']:
-                parsed, index = parseBoolAndNull(content, index)
+            elif char in set(['f', 't', 'n']):
+                parsed, endIndex = parseBoolAndNull(content, index)
+                if parsed == -1:
+                    erMes = f"Invalid value while parsing bool/null value: End Index: {endIndex} - Total Substring: {content[index:endIndex]}"
+                    raise KeyError(erMes)
+                index = endIndex
             elif char == listOpen:
                 parsed, index = parseList(content, index)
             elif char == objectOpen:
@@ -105,8 +109,12 @@ def parseObject(content, index):
                 parsed, index = parseString(content, index)
             elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
-            elif char.lower() in set(['f', 't', 'n']):
-                parsed, index = parseBoolAndNull(content, index)
+            elif char in set(['f', 't', 'n']):
+                parsed, endIndex = parseBoolAndNull(content, index)
+                if parsed == -1:
+                    erMes = f"Invalid value while parsing bool/null value: End Index: {endIndex} - Total Substring: {content[index:endIndex]}"
+                    raise KeyError(erMes)
+                index = endIndex
             elif char == listOpen:
                 parsed, index = parseList(content, index)
             elif char == objectOpen:
