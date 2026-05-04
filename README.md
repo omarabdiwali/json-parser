@@ -41,13 +41,13 @@ The parser uses **recursive descent parsing** with the following core functions:
 The parser follows these steps:
 1. Reads the entire file content using UTF-8 encoding
 2. Strips whitespace and removes line breaks
-3. Processes the content character by character starting with `{` or `[`
+3. Processes the content character by character
 4. Builds the corresponding Python data structure (dict, list, str, int, float, bool, or None)
 
 ## Error Handling
 
 The parser includes basic error handling:
-- Validates that JSON files start with `{` or `[`
+- Validates that JSON files start with a valid starting character
 - Raises exceptions for unknown characters during parsing
 - Provides detailed error messages including the position and surrounding context
 

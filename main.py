@@ -46,13 +46,18 @@ def parseNumber(content, index):
 def parseBoolAndNull(content, index):
     values = { 'false': False, 'true': True, 'null': None }
     breakMatch = breakPattern.search(content, index)
-    lastIndex = len(content) if breakMatch is None else breakMatch.start()
-    parsed = content[index:lastIndex]
+    endIndex = len(content) if breakMatch is None else breakMatch.start()
+    parsed = content[index:endIndex]
     
-    if lastIndex != len(content) and content[lastIndex] != ',':
-        lastIndex -= 1
+    if endIndex != len(content) and content[endIndex] != ',':
+        endIndex -= 1
     
-    return tuple([values.get(parsed, -1), lastIndex])
+    translated = values.get(parsed, -1)
+    if translated == -1:
+        erMes = f"Invalid value while parsing bool/null value: End Index: {endIndex} - Total Substring: {content[index:endIndex]}"
+        raise KeyError(erMes)
+    
+    return tuple([translated, endIndex])
 
 def parseList(content, index):
     parsedList = []
@@ -72,11 +77,7 @@ def parseList(content, index):
             elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
             elif char in set(['f', 't', 'n']):
-                parsed, endIndex = parseBoolAndNull(content, index)
-                if parsed == -1:
-                    erMes = f"Invalid value while parsing bool/null value: End Index: {endIndex} - Total Substring: {content[index:endIndex]}"
-                    raise KeyError(erMes)
-                index = endIndex
+                parsed, index = parseBoolAndNull(content, index)
             elif char == listOpen:
                 parsed, index = parseList(content, index)
             elif char == objectOpen:
@@ -110,11 +111,7 @@ def parseObject(content, index):
             elif char.isdigit() or char == "-":
                 parsed, index = parseNumber(content, index)
             elif char in set(['f', 't', 'n']):
-                parsed, endIndex = parseBoolAndNull(content, index)
-                if parsed == -1:
-                    erMes = f"Invalid value while parsing bool/null value: End Index: {endIndex} - Total Substring: {content[index:endIndex]}"
-                    raise KeyError(erMes)
-                index = endIndex
+                parsed, index = parseBoolAndNull(content, index)
             elif char == listOpen:
                 parsed, index = parseList(content, index)
             elif char == objectOpen:
@@ -144,12 +141,19 @@ with open(argv[1], "r", encoding="utf-8") as f:
 content = content.strip().replace("\n", "")
 jsonParsed = None
 
-if content[0] == objectOpen:
-    jsonParsed, _ = parseObject(content, 0)
-elif content[0] == listOpen:
-    jsonParsed, _ = parseList(content, 0)
-else:
-    raise KeyError("Invalid JSON: File has to begin with '{' or '['.")
+match content[0]:
+    case '{':
+        jsonParsed, _ = parseObject(content, 0)
+    case '[':
+        jsonParsed, _ = parseList(content, 0)
+    case 'f' | 't' | 'n':
+        jsonParsed, _ = parseBoolAndNull(content, 0)
+    case '"':
+        jsonParsed, _ = parseString(content, 0)
+    case val if val.isdigit() or val == '-':
+        jsonParsed, _ = parseNumber(content, 0)
+    case _:
+        raise KeyError("Invalid JSON file.")
 
 duration = time() - start
 print(jsonParsed)
