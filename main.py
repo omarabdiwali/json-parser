@@ -59,7 +59,7 @@ def parseBoolAndNull(content, index):
     
     return tuple([translated, endIndex])
 
-def parseList(content, index):
+def parseArray(content, index):
     parsedList = []
     index += 1
     
@@ -79,7 +79,7 @@ def parseList(content, index):
             elif char in set(['f', 't', 'n']):
                 parsed, index = parseBoolAndNull(content, index)
             elif char == listOpen:
-                parsed, index = parseList(content, index)
+                parsed, index = parseArray(content, index)
             elif char == objectOpen:
                 parsed, index = parseObject(content, index)
             else:
@@ -113,7 +113,7 @@ def parseObject(content, index):
             elif char in set(['f', 't', 'n']):
                 parsed, index = parseBoolAndNull(content, index)
             elif char == listOpen:
-                parsed, index = parseList(content, index)
+                parsed, index = parseArray(content, index)
             elif char == objectOpen:
                 parsed, index = parseObject(content, index)
             else:
@@ -132,6 +132,98 @@ def parseObject(content, index):
     assert isKey and None not in obj and prevKey == None, f"Key-Value lengths don't match. {obj}"
     return tuple([obj, index])
 
+def parse(content):
+    startChar = content[0]
+    
+    if startChar == '{':
+        return parseObject(content, 0)[0]
+    elif startChar == '[':
+        return parseArray(content, 0)[0]
+    elif startChar == 'f' or startChar == 't' or startChar == 'n':
+        return parseBoolAndNull(content, 0)[0]
+    elif startChar == '"':
+        return parseString(content, 0)[0]
+    elif startChar.isdigit() or startChar == '-':
+        return parseNumber(content, 0)[0]
+    else:
+        raise KeyError("Invalid JSON file.")
+
+def stringifyDict(obj):
+    string = []
+    string.append("{")
+    for key, val in obj.items():
+        string.append(f'"{key}":')
+        valType = type(val)
+        
+        if valType == dict:
+            string.append(stringifyDict(val))
+        elif valType == list:
+            string.append(stringifyList(val, 1))
+        elif valType == str:
+            string.append(f'"{val}"')
+        elif valType == int or valType == float:
+            string.append(f"{val}")
+        elif val == None or valType == bool:
+            replacement = { True: 'true', False: 'false', None: 'null' }
+            string.append(f"{replacement[val]}")
+        else:
+            raise KeyError(f"Encountered unknown type: {valType} - Item: {val}")
+
+        string.append(",")
+
+    if string[-1] == ',':
+        string.pop()
+    
+    string.append("}")
+    return "".join(string)
+
+def stringifyList(array, depth=0):
+    string = []
+    string.append("[")
+    for val in array:
+        valType = type(val)
+
+        if valType == dict:
+            string.append(stringifyDict(val))
+        elif valType == list:
+            string.append(stringifyList(val, depth + 1))
+        elif valType == str:
+            string.append(f'"{val}"')
+        elif valType == int or valType == float:
+            string.append(f"{val}")
+        elif val == None or valType == bool:
+            replacement = { True: 'true', False: 'false', None: 'null' }
+            string.append(f"{replacement[val]}")
+        else:
+            raise KeyError(f"Encountered unknown type: {valType} - Item: {val}")
+
+        if depth == 0:
+            string.append("\n")
+        string.append(",")
+    
+    if string[-1] == ',':
+        string.pop()
+
+    string.append(']')
+    return "".join(string)
+
+def stringify(json):
+    jsonType = type(json)
+    
+    if jsonType == dict:
+        return stringifyDict(json)
+    elif jsonType == list:
+        return stringifyList(json)
+    elif jsonType == str:
+        return f'"{json}"'
+    elif jsonType == int or jsonType == float:
+        return f"{json}"
+    elif json == None or jsonType == bool:
+        replacement = { True: 'true', False: 'false', None: 'null' }
+        return f"{replacement[json]}"
+    else:
+        raise KeyError(f"Encountered unknown type: {jsonType} - Item: {json}")
+
 start = time()
 
 with open(argv[1], "r", encoding="utf-8") as f:
@@ -139,22 +231,7 @@ with open(argv[1], "r", encoding="utf-8") as f:
     f.close()
 
 content = content.strip().replace("\n", "")
-jsonParsed = None
-
-match content[0]:
-    case '{':
-        jsonParsed, _ = parseObject(content, 0)
-    case '[':
-        jsonParsed, _ = parseList(content, 0)
-    case 'f' | 't' | 'n':
-        jsonParsed, _ = parseBoolAndNull(content, 0)
-    case '"':
-        jsonParsed, _ = parseString(content, 0)
-    case val if val.isdigit() or val == '-':
-        jsonParsed, _ = parseNumber(content, 0)
-    case _:
-        raise KeyError("Invalid JSON file.")
-
+jsonParsed = parse(content)
 duration = time() - start
 print(jsonParsed)
 print(f"\nParsing took {duration} seconds.")
